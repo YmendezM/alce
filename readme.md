@@ -46,5 +46,3 @@ SENDER_ADDRES=no@reply.com
 
 #Important! 
 Issue report and pull requests are welcome!
-
-I like to invite you to visit my website on [Jefferochoa.com.ve](http://jefferochoa.com.ve)
