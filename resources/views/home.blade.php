@@ -83,10 +83,9 @@
             @endforeach
             @endif
         </div>
-
+<!-- Modal
 <button class="btn btn-primary" data-toggle="modal" data-target="#myModal">Trigger Modal in iFrame</button>
-
-<!-- Modal -->
+ 
 <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -102,10 +101,8 @@
         <button type="button" class="btn btn-primary">Save changes</button>
       </div>
     </div>
-    <!-- /.modal-content -->
   </div>
-  <!-- /.modal-dialog -->
 </div>
-<!-- /.modal -->
+ /.modal -->
 
 @endsection
