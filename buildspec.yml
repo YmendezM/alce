@@ -8,11 +8,11 @@ phases:
      - mv  composer.phar /usr/local/bin/composer
      - php --version
      # Start Mysql if you need it
-     - apt-get update -y
-     - apt-get install -y mysql-server
+     - yum update -y
+     - yum install -y mysql-server
      - su mysql -s /bin/bash -c "/usr/sbin/mysqld" &
-     - apt-get update -y
-     - apt-get install php7-mysql
+     - yum update -y
+     - yum install php7-mysql
      - service mysql start
  build:
    commands:
