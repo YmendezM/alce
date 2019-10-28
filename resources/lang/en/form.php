@@ -28,7 +28,7 @@ return [
     	''
     ],
      'message' => [
-    	'title'		=> 'Whats on your mind?',
+    	'title'		=> 'Whats on your min?',
     	'submit'	=> 'Send',
     	''
     ],
