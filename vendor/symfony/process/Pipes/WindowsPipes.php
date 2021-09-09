@@ -26,16 +26,12 @@ use Symfony\Component\Process\Exception\RuntimeException;
  */
 class WindowsPipes extends AbstractPipes
 {
-    /** @var array */
     private $files = array();
-    /** @var array */
     private $fileHandles = array();
-    /** @var array */
     private $readBytes = array(
         Process::STDOUT => 0,
         Process::STDERR => 0,
     );
-    /** @var bool */
     private $disableOutput;
 
     public function __construct($disableOutput, $input)
@@ -51,28 +47,36 @@ class WindowsPipes extends AbstractPipes
                 Process::STDOUT => Process::OUT,
                 Process::STDERR => Process::ERR,
             );
+            $tmpCheck = false;
             $tmpDir = sys_get_temp_dir();
-            if (!@fopen($file = $tmpDir.'\\sf_proc_00.check', 'wb')) {
-                throw new RuntimeException('A temporary file could not be opened to write the process output to, verify that your TEMP environment variable is writable');
-            }
-            @unlink($file);
+            $lastError = 'unknown reason';
+            set_error_handler(function ($type, $msg) use (&$lastError) { $lastError = $msg; });
             for ($i = 0;; ++$i) {
                 foreach ($pipes as $pipe => $name) {
                     $file = sprintf('%s\\sf_proc_%02X.%s', $tmpDir, $i, $name);
-                    if (file_exists($file) && !@unlink($file)) {
+                    if (file_exists($file) && !unlink($file)) {
                         continue 2;
                     }
-                    $h = @fopen($file, 'xb');
+                    $h = fopen($file, 'xb');
+                    if (!$h) {
+                        $error = $lastError;
+                        if ($tmpCheck || $tmpCheck = unlink(tempnam(false, 'sf_check_'))) {
+                            continue;
+                        }
+                        restore_error_handler();
+                        throw new RuntimeException(sprintf('A temporary file could not be opened to write the process output: %s', $error));
+                    }
                     if (!$h || !$this->fileHandles[$pipe] = fopen($file, 'rb')) {
                         continue 2;
                     }
                     if (isset($this->files[$pipe])) {
-                        @unlink($this->files[$pipe]);
+                        unlink($this->files[$pipe]);
                     }
                     $this->files[$pipe] = $file;
                 }
                 break;
             }
+            restore_error_handler();
         }
 
         parent::__construct($input);
@@ -175,7 +179,7 @@ class WindowsPipes extends AbstractPipes
      * @param Process $process The process
      * @param $input
      *
-     * @return WindowsPipes
+     * @return static
      */
     public static function create(Process $process, $input)
     {

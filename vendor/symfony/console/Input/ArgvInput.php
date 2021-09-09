@@ -42,8 +42,6 @@ class ArgvInput extends Input
     private $parsed;
 
     /**
-     * Constructor.
-     *
      * @param array|null           $argv       An array of parameters from the CLI (in the argv format)
      * @param InputDefinition|null $definition A InputDefinition instance
      */
@@ -145,7 +143,10 @@ class ArgvInput extends Input
         $name = substr($token, 2);
 
         if (false !== $pos = strpos($name, '=')) {
-            $this->addLongOption(substr($name, 0, $pos), substr($name, $pos + 1));
+            if (0 === strlen($value = substr($name, $pos + 1))) {
+                array_unshift($this->parsed, null);
+            }
+            $this->addLongOption(substr($name, 0, $pos), $value);
         } else {
             $this->addLongOption($name, null);
         }
@@ -174,7 +175,12 @@ class ArgvInput extends Input
 
         // unexpected argument
         } else {
-            throw new \RuntimeException('Too many arguments.');
+            $all = $this->definition->getArguments();
+            if (count($all)) {
+                throw new \RuntimeException(sprintf('Too many arguments, expected arguments "%s".', implode('" "', array_keys($all))));
+            }
+
+            throw new \RuntimeException(sprintf('No arguments expected, got "%s".', $token));
         }
     }
 
@@ -227,7 +233,7 @@ class ArgvInput extends Input
             if (isset($next[0]) && '-' !== $next[0]) {
                 $value = $next;
             } elseif (empty($next)) {
-                $value = '';
+                $value = null;
             } else {
                 array_unshift($this->parsed, $next);
             }
@@ -273,7 +279,11 @@ class ArgvInput extends Input
 
         foreach ($this->tokens as $token) {
             foreach ($values as $value) {
-                if ($token === $value || 0 === strpos($token, $value.'=')) {
+                // Options with values:
+                //   For long options, test for '--option=' at beginning
+                //   For short options, test for '-o' at beginning
+                $leading = 0 === strpos($value, '--') ? $value.'=' : $value;
+                if ($token === $value || '' !== $leading && 0 === strpos($token, $leading)) {
                     return true;
                 }
             }
@@ -294,12 +304,15 @@ class ArgvInput extends Input
             $token = array_shift($tokens);
 
             foreach ($values as $value) {
-                if ($token === $value || 0 === strpos($token, $value.'=')) {
-                    if (false !== $pos = strpos($token, '=')) {
-                        return substr($token, $pos + 1);
-                    }
-
+                if ($token === $value) {
                     return array_shift($tokens);
+                }
+                // Options with values:
+                //   For long options, test for '--option=' at beginning
+                //   For short options, test for '-o' at beginning
+                $leading = 0 === strpos($value, '--') ? $value.'=' : $value;
+                if ('' !== $leading && 0 === strpos($token, $leading)) {
+                    return substr($token, strlen($leading));
                 }
             }
         }
@@ -320,7 +333,7 @@ class ArgvInput extends Input
                 return $match[1].$self->escapeToken($match[2]);
             }
 
-            if ($token && $token[0] !== '-') {
+            if ($token && '-' !== $token[0]) {
                 return $self->escapeToken($token);
             }
 

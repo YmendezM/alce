@@ -39,8 +39,8 @@ abstract class AbstractDumper implements DataDumperInterface, DumperInterface
     public function __construct($output = null, $charset = null)
     {
         $this->setCharset($charset ?: ini_get('php.output_encoding') ?: ini_get('default_charset') ?: 'UTF-8');
-        $this->decimalPoint = (string) 0.5;
-        $this->decimalPoint = $this->decimalPoint[1];
+        $this->decimalPoint = localeconv();
+        $this->decimalPoint = $this->decimalPoint['decimal_point'];
         $this->setOutput($output ?: static::$defaultOutput);
         if (!$output && is_string(static::$defaultOutput)) {
             static::$defaultOutput = $this->outputStream;
@@ -82,13 +82,15 @@ abstract class AbstractDumper implements DataDumperInterface, DumperInterface
     public function setCharset($charset)
     {
         $prev = $this->charset;
-        $this->charsetConverter = 'fallback';
-
         $charset = strtoupper($charset);
         $charset = null === $charset || 'UTF-8' === $charset || 'UTF8' === $charset ? 'CP1252' : $charset;
 
+        if ($prev === $charset) {
+            return $prev;
+        }
+        $this->charsetConverter = 'fallback';
         $supported = true;
-        set_error_handler(function () use (&$supported) {$supported = false;});
+        set_error_handler(function () use (&$supported) { $supported = false; });
 
         if (function_exists('mb_encoding_aliases') && mb_encoding_aliases($charset)) {
             $this->charset = $charset;
@@ -112,9 +114,9 @@ abstract class AbstractDumper implements DataDumperInterface, DumperInterface
     /**
      * Sets the indentation pad string.
      *
-     * @param string $pad A string the will be prepended to dumped lines, repeated by nesting level
+     * @param string $pad A string that will be prepended to dumped lines, repeated by nesting level
      *
-     * @return string The indent pad
+     * @return string The previous indent pad
      */
     public function setIndentPad($pad)
     {
@@ -132,6 +134,9 @@ abstract class AbstractDumper implements DataDumperInterface, DumperInterface
      */
     public function dump(Data $data, $output = null)
     {
+        $this->decimalPoint = localeconv();
+        $this->decimalPoint = $this->decimalPoint['decimal_point'];
+
         $exception = null;
         if ($output) {
             $prevOutput = $this->setOutput($output);
@@ -155,7 +160,8 @@ abstract class AbstractDumper implements DataDumperInterface, DumperInterface
     /**
      * Dumps the current line.
      *
-     * @param int $depth The recursive depth in the dumped structure for the line being dumped
+     * @param int $depth The recursive depth in the dumped structure for the line being dumped,
+     *                   or -1 to signal the end-of-dump to the line dumper callable
      */
     protected function dumpLine($depth)
     {
@@ -166,8 +172,9 @@ abstract class AbstractDumper implements DataDumperInterface, DumperInterface
     /**
      * Generic line dumper callback.
      *
-     * @param string $line  The line to write
-     * @param int    $depth The recursive depth in the dumped structure
+     * @param string $line      The line to write
+     * @param int    $depth     The recursive depth in the dumped structure
+     * @param string $indentPad The line indent pad
      */
     protected function echoLine($line, $depth, $indentPad)
     {
@@ -190,7 +197,7 @@ abstract class AbstractDumper implements DataDumperInterface, DumperInterface
         }
         if ('iconv' === $this->charsetConverter) {
             $valid = true;
-            set_error_handler(function () use (&$valid) {$valid = false;});
+            set_error_handler(function () use (&$valid) { $valid = false; });
             $c = iconv($this->charset, 'UTF-8', $s);
             restore_error_handler();
             if ($valid) {
